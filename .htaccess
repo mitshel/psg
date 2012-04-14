@@ -1,0 +1,5 @@
+DirectoryIndex index.html index.php
+AuthType Basic
+AuthName "PhotoScanGallery"
+AuthUserFile /home/www/.htpasswd
+require valid-user

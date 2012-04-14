@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd /home/www/photo/PhotoScanGallery/prog
+/usr/local/bin/php thumbscrea2-sh.php > thumbscrea.log
