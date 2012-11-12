@@ -3,3 +3,4 @@ AuthType Basic
 AuthName "PhotoScanGallery"
 AuthUserFile /home/www/.htpasswd
 require valid-user
+php_flag display_errors 1

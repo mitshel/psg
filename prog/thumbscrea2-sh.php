@@ -9,6 +9,8 @@
  $thumbnail_size=200;
  $photosmal_size=800;
  $remake_images=0;
+ $ini_name=".psg";
+
 
  /* MODULE GLOBAL VARIABLES */
 
@@ -75,6 +77,9 @@
              echo $cmd;
              $last_line = system($cmd, $retval);
 	     echo " Result=".$last_line.":".$retval."\n\n";
+             
+             unlink($mkpath."/".$GLOBALS["ini_name"]); 
+             copy($path."/".$GLOBALS["ini_name"],$mkpath."/".$GLOBALS["ini_name"]);
 
              dir_path($path);
            }
@@ -99,6 +104,12 @@
    return $path_curent;
  }
 
- dir_path($startdir);
+$path=$startdir;
+$short_path = substr($path,$GLOBALS["startlen"]);
+$mkpath = $GLOBALS["thumbsdir"]."/".$short_path;
+unlink($mkpath."/".$GLOBALS["ini_name"]);
+copy($path."/".$GLOBALS["ini_name"],$mkpath."/".$GLOBALS["ini_name"]);
  
+dir_path($startdir);
+
  ?>

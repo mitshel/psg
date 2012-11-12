@@ -11,10 +11,13 @@
  $basedir="/home/www";
  $url_home="/photo/PhotoScanGallery";
  $icon_dir="/photo/PhotoScanGallery/images/ICONS";
- $icon_folder=$icon_dir."/folder.gif";
+ $icon_folder=$icon_dir."/plain_folder.png";
+ $lock_folder=$icon_dir."/folder_locked.png";
+ $psg_folder=$icon_dir."/psg_folder.png";
  $image_top=$icon_dir."/PSG-HEAD-V1.jpg";
  $image_bot=$icon_dir."/PSG-FOOT-V1.jpg";
  $image_up=$icon_dir."/up.gif";
+ $image_dwld=$icon_dir."/download.png";
  $image_home=$icon_dir."/home.gif";
  $thumbnail_prefix="T-";
  $resized_prefix="R-";
@@ -23,6 +26,7 @@
  $remake_images=0;
  $columns = 3;
  $script_url = "psg.php";
+ $ini_name=".psg";
 
  /* MODULE GLOBAL VARIABLES */
 
@@ -60,6 +64,11 @@ $("a.first").fancybox({
 	});
 });
 </script>
+
+<style type="text/css">
+img { border:0; } 
+</style>
+
 <title>PhotoScanGallery Photo Album</title>
 </head>
 <body>
@@ -76,6 +85,123 @@ $("a.first").fancybox({
 ?>
 
 <?php
+
+if (!defined('_BR_'))
+   define('_BR_',chr(13).chr(10));
+class TIniFileEx {
+    public $filename;
+    public $arr=array();
+    function __construct($file = false){
+        if ($file)
+            $this->loadFromFile($file);
+    }
+    function initArray(){
+        $this->arr = parse_ini_file($this->filename, true);
+    }
+    function loadFromFile($file){
+        $result = true;
+        $this->filename = $file;
+        if (file_exists($file) && is_readable($file)){
+            $this->initArray();
+        }
+        else
+            $result = false;
+        return $result;
+    }
+    function read($section, $key, $def = ''){
+        if (isset($this->arr[$section][$key])){
+            return $this->arr[$section][$key];
+        } else
+            return $def;
+    }
+    function write($section, $key, $value){
+        if (is_bool($value))
+            $value = $value ? 1 : 0;
+        $this->arr[$section][$key] = $value;
+    }
+    function eraseSection($section){
+        if (isset($this->arr[$section]))
+            unset($this->arr[$section]);
+    }
+    function deleteKey($section, $key){
+        if (isset($this->arr[$section][$key]))
+            unset($this->arr[$section][$key]);
+    }
+    function readSections(&$array){
+        $array = array_keys($this->arr);
+        return $array;
+    }
+    function readKeys($section, &$array){
+        if (isset($this->arr[$section])){
+            $array = array_keys($this->arr[$section]);
+            return $array;
+        }
+        return array();
+    }
+    function updateFile(){
+        $result = '';
+        foreach ($this->arr as $sname=>$section){
+            $result .= '[' . $sname . ']' . _BR_;
+            foreach ($section as $key=>$value){
+                $result .= $key .'='.$value . _BR_;
+            }
+            $result .= _BR_;
+        }
+            file_put_contents($this->filename, $result);
+            return true;
+    }
+    function __destruct(){
+        $this->updateFile();
+    }
+}
+
+function user_access($dir) {
+  $curdir=$dir;
+  $ret=0;
+
+  do {
+        $inifile=$curdir."/".$GLOBALS["ini_name"];
+        $ini=new TIniFileEx($inifile);
+        $users = $ini->read('auth','users','-');
+        if ($users==='-') $curdir=dirname($curdir);
+        $ret=$ret+1;
+  } while (($curdir!==$GLOBALS["thumbsbasedir"])&&($users==='-'));
+
+  if ($users==='-') return 0;
+  $users_list=strtoupper($users);
+  $pos=strpos($users_list,'ALL');
+  if ($pos===false) {
+     $pos=strpos($users_list,strtoupper($_SERVER['REMOTE_USER']));
+     if ($pos===false) return 0;
+  }
+
+  return $ret;
+}
+
+function user_access2($dir) {
+
+  return 1;
+
+  $curdir=$dir;
+  $ret=0;
+  do {
+        $inifile=$curdir."/".$GLOBALS["ini_name"];
+        $ini=parse_ini_file($inifile,true);
+        if ($ini==false) $curdir=dirname($curdir);
+        $ret=$ret+1;
+  } while (($curdir!=$GLOBALS["thumbsbasedir"])&&($ini===false));
+
+  if ($ini===false) return 0;
+  $users_list=strtoupper($ini['auth']['users']);
+  $pos=strpos($users_list,'ALL');
+  if ($pos===false) {
+     $pos=strpos($users_list,strtoupper($_SERVER['REMOTE_USER']));
+     if ($pos===false) return 0;
+  }
+
+  return $ret;
+}
+
 function cell_out($img, $text, $ref, $isimg) {
   $GLOBALS["col_count"]=$GLOBALS["col_count"]+1;
   if ($GLOBALS["col_count"]==1) {
@@ -89,16 +215,41 @@ function cell_out($img, $text, $ref, $isimg) {
 
   if ($isimg==0) {
      $href=$GLOBALS["script_url"]."?url=".$ref;
-     echo "<A HREF=\"".$href."\">";
-     echo "<img ".$width_height." src=\"".$img."\" /><br>";
-     echo $text;
-     echo "</A>"; }
+
+     $ua=user_access($ref);
+
+     if ($ua==0) {
+        echo "<img src=\"".$GLOBALS["lock_folder"]."\" /><br>";
+        echo $text;
+     } else 
+     if ($ua==1) {
+        echo "<A HREF=\"".$href."\">";
+     	echo "<img src=\"".$GLOBALS["psg_folder"]."\" /><br>";
+        echo $text;
+        echo "</A>";
+     }
+     else
+     {
+        echo "<A HREF=\"".$href."\">";
+        echo "<img src=\"".$GLOBALS["icon_folder"]."\" /><br>";
+        echo $text;
+        echo "</A>";
+     };
+}
   else {
      $href=$ref;
-     echo "<A class=first title=".$text." HREF=\"".$href."\">";
+     echo "<A class=first rel=gr title=".$text." HREF=\"".$href."\">";
      echo "<img ".$width_height." src=\"".$img."\" /><br>";
-     echo $text;
      echo "</A>"; 
+     echo "<table><tr><td>";
+     echo "<A class=first rel=tx title=".$text." HREF=\"".$href."\">";
+     echo $text;
+     echo "</A>";   
+     echo "</td><td>";
+     echo "<A HREF=\"download.php?filename=".$href."\">";
+     echo "<img width=16 height=16 src=\"".$GLOBALS["image_dwld"]."\" />";
+     echo "</A>";
+     echo "</td></tr></table>";
   }
   
   echo "<br><br></center></td>";
@@ -164,6 +315,9 @@ dir_path($url);
   echo "<tr>";
   echo "<td colspan=".$columns."><center><img src=\"".$image_bot."\"/></center></td>";
   echo "</tr>";
+//  echo "<tr>";
+//  echo "<td colspan=".$columns."><center>".$_SERVER['REMOTE_USER']."</center></td>";
+//  echo "</tr>";
 ?>
 
 </table>
